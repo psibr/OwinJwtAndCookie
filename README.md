@@ -1,5 +1,5 @@
 # OwinJwtAndCookie
-An owin middleware for JWT tokens and optional cookie parsing with an owin signin delegate.
+An owin middleware for JWT token parsing from Authorization header and cookies with an owin signin delegate with optional cookie writing capabilities.
 
 ## OWIN configuration
 
