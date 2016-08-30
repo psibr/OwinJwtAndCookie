@@ -101,9 +101,7 @@ namespace OwinJwtAndCookie
 
         private IDictionary<string, object> DecodeAndValidateToken(string token)
         {
-
             IDictionary<string, object> payload = null;
-
 
             try
             {
