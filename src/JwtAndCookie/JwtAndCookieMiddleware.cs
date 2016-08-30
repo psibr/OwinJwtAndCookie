@@ -4,20 +4,24 @@ using System.Globalization;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using JWT;
-using AppFunc = System.Func<System.Collections.Generic.IDictionary<string, object>, System.Threading.Tasks.Task>;
 
 namespace OwinJwtAndCookie
 {
+    using System.Security.Cryptography;
+    using System.Security.Cryptography.X509Certificates;
+    using AppFunc = Func<IDictionary<string, object>, Task>;
+
     public class JwtAndCookieMiddleware
     {
         private readonly AppFunc _next;
-        private readonly JwtAndCookieMiddlewareOptions _options;
+        private readonly Options _options;
 
-        public JwtAndCookieMiddleware(AppFunc next, JwtAndCookieMiddlewareOptions options)
+        public JwtAndCookieMiddleware(AppFunc next, Options options)
         {
             _next = next;
             _options = options;
+
+            Jose.JWT.JsonMapper = new Jose.NewtonsoftMapper();
         }
 
         public Task Invoke(IDictionary<string, object> environment)
@@ -61,18 +65,19 @@ namespace OwinJwtAndCookie
             return _next(environment);
         }
 
-        private void DefineJwtGenerator(IDictionary<string, object> environment, JwtAndCookieMiddlewareOptions options)
+        private void DefineJwtGenerator(IDictionary<string, object> environment, Options options)
         {
             environment["jwtandcookie.signin"] = new Func<Func<Guid, IDictionary<string, object>>, bool, string>(
                 (claimBuilder, buildCookie) =>
                 {
                     var jti = Guid.NewGuid();
-                    var jwt = JsonWebToken.Encode(new Dictionary<string, object>
+                    var jwt = Jose.JWT.Encode(new Dictionary<string, object>
                     {
                         { "jti", jti.ToString() },
                         { "exp",  BuildExpHeader(options) }
-                    }.Union(claimBuilder(jti)).ToDictionary(p => p.Key, p => p.Value), _options.PassPhrase,
-                        JwtHashAlgorithm.HS256);
+                    }.Union(claimBuilder(jti)).ToDictionary(p => p.Key, p => p.Value), 
+                        _options.Certificate.GetRSAPublicKey() as RSACng,
+                        Jose.JweAlgorithm.RSA_OAEP, Jose.JweEncryption.A256GCM);
 
                     if (!buildCookie) return jwt;
 
@@ -84,7 +89,7 @@ namespace OwinJwtAndCookie
                 });
         }
 
-        private static string BuildExpHeader(JwtAndCookieMiddlewareOptions options)
+        private static string BuildExpHeader(Options options)
         {
             var timePeriod = DateTime.UtcNow
                              - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)
@@ -96,14 +101,15 @@ namespace OwinJwtAndCookie
 
         private IDictionary<string, object> DecodeAndValidateToken(string token)
         {
-
             IDictionary<string, object> payload = null;
 
             try
             {
-                payload = JsonWebToken.DecodeToObject<Dictionary<string, object>>(token, _options.PassPhrase);
+                payload = Jose.JWT.Decode<IDictionary<string, object>>(token, 
+                    _options.Certificate.GetRSAPrivateKey() as RSACng,
+                    Jose.JweAlgorithm.RSA_OAEP, Jose.JweEncryption.A256GCM);
             }
-            catch (SignatureVerificationException) //No meaningful valid payload, return null.
+            catch (Jose.JoseException) //No meaningful valid payload, return null.
             {
                 return payload;
             }
