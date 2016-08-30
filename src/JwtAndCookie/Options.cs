@@ -1,23 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Security.Claims;
+using System.Security.Cryptography.X509Certificates;
 
 namespace OwinJwtAndCookie
 {
-    public class JwtAndCookieMiddlewareOptions
+    public class Options
     {
-        public JwtAndCookieMiddlewareOptions()
+        public Options()
         {
             CookieHttpOnly = true;
         }
-
-        public string PassPhrase { get; set; }
-
+        
         public string CookieName { get; set; }
 
         public string CookiePath { get; set; }
 
         public bool CookieHttpOnly { get; set; }
+
+        public X509Certificate2 Certificate { get; set; }
 
         public string ClaimsPrincipalResourceName { get; set; }
 

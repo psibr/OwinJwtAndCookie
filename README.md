@@ -1,20 +1,24 @@
-# OwinJwtAndCookie
-An owin middleware for JWT token parsing from Authorization header and cookies with an owin signin delegate with optional cookie writing capabilities.
+# JwtAndCookie
+An owin middleware for JOSE RSA JWE & JWT token parsing from Authorization header and cookies with an owin signin delegate with optional cookie writing capabilities.
 
 ## OWIN configuration
 
-Add the following to your OWIN startup or IAppBuilder, feeding your values from your own configuration scheme.
+Add the following to your ASPNETCORE startup, feeding your values from your own configuration scheme.
 
 ```csharp
-app.UseJwtAndCookieMiddleware(new JwtAndCookieMiddlewareOptions
+app.UseOwin(owin =>
 {
-    PassPhrase = configuration.HmacPassphrase,
-    CookieName = configuration.CookieName,
-    CookiePath = configuration.CookiePath,
-    CookieHttpOnly = true,
-    TokenLifeSpan = TimeSpan.FromMinutes(configuration.TokenLifeSpan),
-    ClaimsPrincipalResourceName = configuration.ClaimsPrincipalResourceName,
-    CreatePrincipal = CreatePrincipal
+    owin((next) =>
+        new JwtAndCookieMiddleware(next, new Options
+        {
+            Certificate = new X509Certificate2("C:\\jwtmiddleware.pfx", "test"),
+            CookieName = "jwt",
+            CookiePath = "/",
+            CookieHttpOnly = true,
+            TokenLifeSpan = TimeSpan.FromMinutes(30),
+            ClaimsPrincipalResourceName = "principal",
+            CreatePrincipal = (payload) => new ClaimsPrincipal(new ClaimsIdentity(new GenericIdentity("meh"))) //Example func
+        }).Invoke);
 });
 ```
 
